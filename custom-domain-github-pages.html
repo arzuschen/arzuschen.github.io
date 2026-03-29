@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>How to Use a Custom Domain for a GitHub Pages Site</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f6f7fb;
+        --card: #ffffff;
+        --text: #1e2430;
+        --muted: #5e6a7f;
+        --accent: #2f6feb;
+        --border: #d8deea;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f1522;
+          --card: #161d2d;
+          --text: #e6ebf4;
+          --muted: #a7b2c7;
+          --accent: #7aa2ff;
+          --border: #2a3448;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.7;
+      }
+
+      .container {
+        max-width: 820px;
+        margin: 0 auto;
+        padding: 2rem 1.2rem 3rem;
+      }
+
+      article {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 1.3rem;
+      }
+
+      h1 {
+        margin-top: 0;
+        line-height: 1.2;
+      }
+
+      h2 {
+        margin-top: 1.8rem;
+      }
+
+      .meta {
+        color: var(--muted);
+        margin-top: -0.4rem;
+      }
+
+      a {
+        color: var(--accent);
+      }
+
+      code {
+        background: color-mix(in srgb, var(--card) 35%, var(--muted) 12%);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 0.1rem 0.35rem;
+        font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+        font-size: 0.95em;
+      }
+
+      pre {
+        background: color-mix(in srgb, var(--card) 30%, var(--muted) 16%);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 0.8rem;
+        overflow-x: auto;
+      }
+
+      ul {
+        padding-left: 1.2rem;
+      }
+
+      .back {
+        display: inline-block;
+        margin-bottom: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="container">
+      <a class="back" href="index.html">← Back to home</a>
+      <article>
+        <h1>How to Use a Custom Domain for a GitHub Pages Site</h1>
+        <p class="meta">Published March 2026 · 7 min read</p>
+
+        <p>
+          If your site is hosted on GitHub Pages, you can use your own domain
+          (for example, <code>blog.example.com</code>) instead of the default
+          <code>username.github.io</code>. This guide walks through the full
+          setup with the safest path and common fixes.
+        </p>
+
+        <h2>1) Decide your domain style</h2>
+        <ul>
+          <li>
+            <strong>Apex/root domain</strong>: <code>example.com</code> (no
+            subdomain)
+          </li>
+          <li>
+            <strong>Subdomain</strong>: <code>www.example.com</code> or
+            <code>blog.example.com</code>
+          </li>
+        </ul>
+        <p>
+          Subdomains are usually easier to configure and maintain, but both
+          options work with GitHub Pages.
+        </p>
+
+        <h2>2) Add your domain in GitHub Pages settings</h2>
+        <p>In your repository:</p>
+        <ol>
+          <li>Go to <strong>Settings</strong> → <strong>Pages</strong>.</li>
+          <li>
+            Under <strong>Custom domain</strong>, enter your domain and save.
+          </li>
+          <li>
+            Wait for GitHub to create/update the <code>CNAME</code> file in
+            your repo.
+          </li>
+        </ol>
+
+        <h2>3) Configure DNS records at your domain provider</h2>
+        <p>At your DNS provider (Cloudflare, Namecheap, GoDaddy, etc.):</p>
+        <ul>
+          <li>
+            For <code>www.example.com</code> or <code>blog.example.com</code>,
+            create a <code>CNAME</code> record pointing to
+            <code>username.github.io</code>.
+          </li>
+          <li>
+            For root domain <code>example.com</code>, use
+            <code>A</code> records to GitHub Pages IPs.
+          </li>
+        </ul>
+
+        <pre><code>185.199.108.153
+185.199.109.153
+185.199.110.153
+185.199.111.153</code></pre>
+
+        <p>
+          If your DNS provider supports <code>ALIAS</code> or
+          <code>ANAME</code> for root domains, you can use that instead.
+        </p>
+
+        <h2>4) Enable HTTPS</h2>
+        <p>
+          Back in GitHub Pages settings, turn on
+          <strong>Enforce HTTPS</strong> after certificate provisioning is
+          complete. This can take a little while after DNS starts resolving.
+        </p>
+
+        <h2>5) Verify the setup</h2>
+        <ul>
+          <li>
+            Confirm your repo has a <code>CNAME</code> file with exactly your
+            domain.
+          </li>
+          <li>Open your domain in a browser and test <code>https://</code>.</li>
+          <li>Check both non-www and www behavior if you use redirects.</li>
+        </ul>
+
+        <h2>Common issues and fixes</h2>
+        <ul>
+          <li>
+            <strong>Domain not working yet:</strong> DNS propagation can take
+            minutes to 48 hours.
+          </li>
+          <li>
+            <strong>404 on custom domain:</strong> check that your DNS target
+            and <code>CNAME</code> file value match exactly.
+          </li>
+          <li>
+            <strong>HTTPS unavailable:</strong> wait for DNS to fully resolve,
+            then recheck the Pages settings.
+          </li>
+          <li>
+            <strong>Wrong repo type:</strong> user/organization sites should be
+            in <code>username.github.io</code>; project sites have different
+            URL behavior.
+          </li>
+        </ul>
+
+        <p>
+          Once this is done, your site will load from your own domain while
+          still being hosted for free on GitHub Pages.
+        </p>
+      </article>
+    </main>
+  </body>
+</html>
