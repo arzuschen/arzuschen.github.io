@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Starting a Dota Replay Action Decoder</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f6f7fb;
+        --card: #ffffff;
+        --text: #1e2430;
+        --muted: #5e6a7f;
+        --accent: #2f6feb;
+        --border: #d8deea;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f1522;
+          --card: #161d2d;
+          --text: #e6ebf4;
+          --muted: #a7b2c7;
+          --accent: #7aa2ff;
+          --border: #2a3448;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.7;
+      }
+
+      .container {
+        max-width: 820px;
+        margin: 0 auto;
+        padding: 2rem 1.2rem 3rem;
+      }
+
+      article {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 1.3rem;
+      }
+
+      h1 {
+        margin-top: 0;
+        line-height: 1.2;
+      }
+
+      h2 {
+        margin-top: 1.8rem;
+      }
+
+      .meta {
+        color: var(--muted);
+        margin-top: -0.4rem;
+      }
+
+      a {
+        color: var(--accent);
+      }
+
+      code {
+        background: color-mix(in srgb, var(--card) 35%, var(--muted) 12%);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 0.1rem 0.35rem;
+        font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+        font-size: 0.95em;
+      }
+
+      pre {
+        background: color-mix(in srgb, var(--card) 30%, var(--muted) 16%);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 0.8rem;
+        overflow-x: auto;
+      }
+
+      ul {
+        padding-left: 1.2rem;
+      }
+
+      .back {
+        display: inline-block;
+        margin-bottom: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="container">
+      <a class="back" href="index.html">← Back to home</a>
+      <article>
+        <h1>Starting a Dota Replay Action Decoder</h1>
+        <p class="meta">Published March 2026 · 10 min read</p>
+
+        <p>
+          I am starting a package for decoding detailed player actions from Dota
+          2 <code>.dem</code> replay files. Existing parsers like Clarity are
+          strong on broad match summaries, but my target is different: per-
+          player action sequences with rich context.
+        </p>
+
+        <p>
+          The end goal is a large-scale dataset for behavior analysis and
+          learning hero pick/ban strategy, eventually pushing toward match
+          result prediction from drafting plus early-game signals.
+        </p>
+
+        <p>
+          I have wanted this for a while because most public replay pipelines
+          answer "what happened?" but not "why did this player decide to do
+          that here?" I want the second question to be first-class.
+        </p>
+
+        <h2>What I want this project to do</h2>
+        <ul>
+          <li>
+            Process replay files at large scale (tens or hundreds of thousands
+            of games).
+          </li>
+          <li>
+            Capture per-player actions with scenario context (draft, lane,
+            economy, vision, timeline state).
+          </li>
+          <li>
+            Keep the system extensible so "action" definitions and features can
+            evolve without rewriting decoder internals.
+          </li>
+          <li>
+            Make outputs ML-friendly for Python tooling and columnar data flows.
+          </li>
+        </ul>
+
+        <h2>Architecture I am building toward</h2>
+        <p>
+          The architecture is intentionally layered so low-level parsing and
+          high-level feature extraction can evolve independently.
+        </p>
+        <ul>
+          <li>
+            <strong>Replay ingestion:</strong> discover <code>.dem</code> files,
+            queue jobs, apply retry and validation logic.
+          </li>
+          <li>
+            <strong>Decode/parsing core (Rust):</strong> parse packets and user
+            messages, maintain entity state, timeline state, and draft state.
+          </li>
+          <li>
+            <strong>Player action extraction:</strong> modular IR-to-action
+            feature modules such as ability, movement, vision, and camera
+            actions.
+          </li>
+          <li>
+            <strong>Context enrichment:</strong> attach game phase, economy,
+            spatial, and draft snapshot context to each action.
+          </li>
+          <li>
+            <strong>Serialization/storage:</strong> write analytics-friendly
+            Arrow/Parquet outputs (plus optional JSONL for debugging).
+          </li>
+          <li>
+            <strong>Analysis/ML:</strong> build sequence datasets and train
+            models in Python.
+          </li>
+        </ul>
+
+        <h2>The IR contract (the important part)</h2>
+        <p>
+          The IR is the contract between decoding and higher-level logic. It
+          needs to be stable, versioned, and expressive enough that future
+          features rarely force decoder rewrites.
+        </p>
+        <pre><code>Replay file
+  -> Rust decoder/parsing core
+  -> IR stream (metadata, draft, ticks, entities, events, user messages)
+  -> action extraction modules
+  -> context enrichment
+  -> Parquet/Arrow tables
+  -> Python analysis + modeling</code></pre>
+
+        <p>Core IR entities:</p>
+        <ul>
+          <li><strong>Match metadata:</strong> replay build, result, duration</li>
+          <li>
+            <strong>Draft state:</strong> ordered pick/ban events by side and
+            phase
+          </li>
+          <li>
+            <strong>Timeline ticks:</strong> synchronized game-time stream
+          </li>
+          <li>
+            <strong>Entity snapshots:</strong> hero/unit/building/ward deltas
+            with stable IDs
+          </li>
+          <li>
+            <strong>Game/combat events:</strong> normalized event payloads
+          </li>
+          <li>
+            <strong>User messages:</strong> raw and parsed Dota-specific message
+            payloads
+          </li>
+        </ul>
+
+        <h2>Unified PlayerAction schema</h2>
+        <p>
+          Every derived event maps into a shared <code>PlayerAction</code>
+          record:
+        </p>
+        <pre><code>PlayerAction {
+  match_id
+  tick
+  time_seconds
+  player_slot
+  team_id
+  hero_id
+  action_type
+  action_args
+  context_version
+}</code></pre>
+        <p>
+          Initial action modules include draft actions, ability casts, movement
+          decisions, item usage, ward interactions, and camera/click patterns.
+          These modules are independent and configurable.
+        </p>
+
+        <h2>How I want to store the data</h2>
+        <p>
+          The core dataset should be analytics-native and language-interoperable
+          from day one:
+        </p>
+        <ul>
+          <li><code>matches</code> (one row per match)</li>
+          <li><code>players</code> (one row per player per match)</li>
+          <li><code>player_actions</code> (primary table)</li>
+          <li>optional: <code>draft_events</code>, <code>combat_events</code>, <code>ward_events</code></li>
+          <li>optional heavy table: <code>ticks</code></li>
+        </ul>
+
+        <h2>How I will keep it extensible</h2>
+        <ul>
+          <li>
+            Version everything: <code>decoder_version</code>,
+            <code>ir_schema_version</code>, and
+            <code>feature_set_version</code>.
+          </li>
+          <li>
+            Prefer additive schema changes with optional fields to reduce
+            breakage.
+          </li>
+          <li>
+            Register feature modules through config so new features can be
+            plugged in without touching the core parser.
+          </li>
+          <li>
+            Keep Rust core and Python analysis loosely coupled through
+            Arrow/Parquet interoperability.
+          </li>
+        </ul>
+
+        <h2>Tech stack choices</h2>
+        <ul>
+          <li>
+            <strong>Rust:</strong> replay decoding, IR generation, and
+            feature extraction for performance and safety.
+          </li>
+          <li>
+            <strong>Parquet/Arrow:</strong> storage and transport format for
+            efficient analytics and interop.
+          </li>
+          <li>
+            <strong>Python:</strong> orchestration, analysis, and modeling
+            iteration speed.
+          </li>
+        </ul>
+
+        <h2>Per-match processing flow</h2>
+        <ol>
+          <li>Ingestion queues a replay path.</li>
+          <li>Rust decoder parses <code>.dem</code> into IR entities.</li>
+          <li>Feature modules emit <code>PlayerAction</code> records.</li>
+          <li>Enrichers attach context to each action.</li>
+          <li>Serializer writes table outputs (Parquet/Arrow).</li>
+          <li>Python notebooks/scripts train and evaluate models.</li>
+        </ol>
+
+        <h2>Modeling direction: draft to result</h2>
+        <p>
+          I will start with draft-only baselines and then add early-game
+          action-context features to quantify predictive lift. This should make
+          it possible to separate what is explained by composition from what is
+          explained by player decisions in specific scenarios.
+        </p>
+        <p>
+          Success is not just accuracy; interpretability matters too. I want to
+          identify which pick/ban patterns and early actions move win
+          probability the most.
+        </p>
+        <p>
+          Next step is implementation notes and first real outputs from replay
+          batches. Once the pipeline is stable, I can compare models trained on
+          draft-only inputs versus draft + player-action context and measure the
+          gap directly.
+        </p>
+      </article>
+    </main>
+  </body>
+</html>
